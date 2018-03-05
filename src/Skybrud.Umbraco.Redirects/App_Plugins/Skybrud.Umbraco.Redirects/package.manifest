@@ -34,14 +34,15 @@
       }
     }
   ],
-  "javascript": [
-    "/App_Plugins/Skybrud.Umbraco.Redirects/Scripts/Services/RedirectsService.js",
-    "/App_Plugins/Skybrud.Umbraco.Redirects/Scripts/Controllers/Dashboards/Default.js",
-    "/App_Plugins/Skybrud.Umbraco.Redirects/Scripts/Controllers/Dialogs/AddRedirectDialog.js",
-    "/App_Plugins/Skybrud.Umbraco.Redirects/Scripts/Controllers/Dialogs/EditRedirectDialog.js",
-    "/App_Plugins/Skybrud.Umbraco.Redirects/Scripts/Controllers/Editors/Inbound.js",
-    "/App_Plugins/Skybrud.Umbraco.Redirects/Scripts/Controllers/Editors/Outbound.js"
-  ],
+    "javascript": [
+        "/App_Plugins/Skybrud.Umbraco.Redirects/Scripts/Services/RedirectsService.js",
+        "/App_Plugins/Skybrud.Umbraco.Redirects/Scripts/Controllers/Dashboards/Default.js",
+        "/App_Plugins/Skybrud.Umbraco.Redirects/Scripts/Controllers/Dialogs/AddRedirectDialog.js",
+        "/App_Plugins/Skybrud.Umbraco.Redirects/Scripts/Controllers/Dialogs/EditRedirectDialog.js",
+        "/App_Plugins/Skybrud.Umbraco.Redirects/Scripts/Controllers/Dialogs/ImportDialog.js",
+        "/App_Plugins/Skybrud.Umbraco.Redirects/Scripts/Controllers/Editors/Inbound.js",
+        "/App_Plugins/Skybrud.Umbraco.Redirects/Scripts/Controllers/Editors/Outbound.js"
+    ],
   "css": [
     "/App_Plugins/Skybrud.Umbraco.Redirects/Styles/Styles.css"
   ]

@@ -1,5 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
+using System.Data.SqlClient;
+using System.IO;
 using System.Linq;
 using Skybrud.Umbraco.Redirects.Exceptions;
 using Umbraco.Core;
@@ -7,6 +10,8 @@ using Umbraco.Core.Logging;
 using Umbraco.Core.Persistence;
 using Umbraco.Core.Persistence.SqlSyntax;
 using System.Text.RegularExpressions;
+using Skybrud.Umbraco.Redirects.Import.Csv;
+using Umbraco.Web;
 
 namespace Skybrud.Umbraco.Redirects.Models {
 
@@ -48,7 +53,7 @@ namespace Skybrud.Umbraco.Redirects.Models {
         /// Gets an array of all domains (<see cref="RedirectDomain"/>) registered in Umbraco.
         /// </summary>
         /// <returns></returns>
-        public RedirectDomain[] GetDomains() {
+        public virtual RedirectDomain[] GetDomains() {
             return ApplicationContext.Current.Services.DomainService.GetAll(false).Select(RedirectDomain.GetFromDomain).ToArray();
         }
 
@@ -61,7 +66,7 @@ namespace Skybrud.Umbraco.Redirects.Models {
         /// <param name="url">The inbound URL to match.</param>
         /// <param name="destionation">An instance of <see cref="RedirectLinkItem"/> representing the destination link.</param>
         /// <returns>An instance of <see cref="RedirectItem"/> representing the created redirect.</returns>
-        public RedirectItem AddRedirect(int rootNodeId, string url, RedirectLinkItem destionation) {
+        public virtual RedirectItem AddRedirect(int rootNodeId, string url, RedirectLinkItem destionation) {
             return AddRedirect(rootNodeId, url, destionation, true, false, false);
         }
 
@@ -77,7 +82,7 @@ namespace Skybrud.Umbraco.Redirects.Models {
         /// <param name="isRegex">Whether regex should be enabled for the redirect.</param>
         /// <param name="forwardQueryString">Whether the redirect should forward the original query string.</param>
         /// <returns>An instance of <see cref="RedirectItem"/> representing the created redirect.</returns>
-        public RedirectItem AddRedirect(int rootNodeId, string url, RedirectLinkItem destionation, bool permanent, bool isRegex, bool forwardQueryString) {
+        public virtual RedirectItem AddRedirect(int rootNodeId, string url, RedirectLinkItem destionation, bool permanent, bool isRegex, bool forwardQueryString) {
 
             // Attempt to create the database table if it doesn't exist
             //try {
@@ -136,7 +141,7 @@ namespace Skybrud.Umbraco.Redirects.Models {
         /// </summary>
         /// <param name="redirect">The redirected to be saved.</param>
         /// <returns>The saved <see cref="redirect"/>.</returns>
-        public RedirectItem SaveRedirect(RedirectItem redirect) {
+        public virtual RedirectItem SaveRedirect(RedirectItem redirect) {
 
             // Some input validation
             if (redirect == null) throw new ArgumentNullException("redirect");
@@ -161,7 +166,7 @@ namespace Skybrud.Umbraco.Redirects.Models {
         /// Deletes the specified <paramref name="redirect"/> from the database.
         /// </summary>
         /// <param name="redirect">The redirected to be deleted.</param>
-        public void DeleteRedirect(RedirectItem redirect) {
+        public virtual void DeleteRedirect(RedirectItem redirect) {
 
             // Some input validation
             if (redirect == null) throw new ArgumentNullException("redirect");
@@ -200,7 +205,7 @@ namespace Skybrud.Umbraco.Redirects.Models {
         /// </summary>
         /// <param name="redirectId">The unique ID of the redirect.</param>
         /// <returns>An instance of <see cref="RedirectItem"/>, or <code>null</code> if not found.</returns>
-        public RedirectItem GetRedirectById(string redirectId) {
+        public virtual RedirectItem GetRedirectById(string redirectId) {
 
             // Validate the input
             if (String.IsNullOrWhiteSpace(redirectId)) throw new ArgumentException("redirectId");
@@ -225,7 +230,7 @@ namespace Skybrud.Umbraco.Redirects.Models {
         /// <param name="rootNodeId">THe ID of the root/side node. Use <code>0</code> for a global redirect.</param>
         /// <param name="url">The URL of the redirect.</param>
         /// <returns>An instance of <see cref="RedirectItem"/>, or <code>null</code> if not found.</returns>
-        public RedirectItem GetRedirectByUrl(int rootNodeId, string url) {
+        public virtual RedirectItem GetRedirectByUrl(int rootNodeId, string url) {
 
             // Some input validation
             if (String.IsNullOrWhiteSpace(url)) throw new ArgumentNullException("url");
@@ -243,7 +248,7 @@ namespace Skybrud.Umbraco.Redirects.Models {
         /// <param name="url">The URL of the redirect.</param>
         /// <param name="queryString">The query string of the redirect.</param>
         /// <returns>An instance of <see cref="RedirectItem"/>, or <code>null</code> if not found.</returns>
-        public RedirectItem GetRedirectByUrl(int rootNodeId, string url, string queryString) {
+        public virtual RedirectItem GetRedirectByUrl(int rootNodeId, string url, string queryString) {
 
             // Some input validation
             if (String.IsNullOrWhiteSpace(url)) throw new ArgumentNullException("url");
@@ -281,7 +286,7 @@ namespace Skybrud.Umbraco.Redirects.Models {
         /// </summary>
         /// <param name="url">The URL of the redirects.</param>
         /// <returns>An array of <see cref="RedirectItem"/>.</returns>
-        public RedirectItem[] GetRedirectsByUrl(string url) {
+        public virtual RedirectItem[] GetRedirectsByUrl(string url) {
 
             // Some input validation
             if (String.IsNullOrWhiteSpace(url)) throw new ArgumentNullException("url");
@@ -298,7 +303,7 @@ namespace Skybrud.Umbraco.Redirects.Models {
         /// <param name="url">The URL of the redirect.</param>
         /// <param name="queryString">The query string of the redirect.</param>
         /// <returns>An array of <see cref="RedirectItem"/>, or <code>null</code> if not found.</returns>
-        public RedirectItem[] GetRedirectsByUrl(string url, string queryString) {
+        public virtual RedirectItem[] GetRedirectsByUrl(string url, string queryString) {
 
             // Some input validation
             if (String.IsNullOrWhiteSpace(url)) throw new ArgumentNullException("url");
@@ -329,7 +334,7 @@ namespace Skybrud.Umbraco.Redirects.Models {
         /// </summary>
         /// <param name="contentId">The numeric ID of the content item.</param>
         /// <returns>An array of <see cref="RedirectItem"/>.</returns>
-        public RedirectItem[] GetRedirectsByContentId(int contentId) {
+        public virtual RedirectItem[] GetRedirectsByContentId(int contentId) {
 
             // Just return an empty array if the table doesn't exist (since there aren't any redirects anyway)
             if (!SchemaHelper.TableExist(RedirectItemRow.TableName)) return new RedirectItem[0];
@@ -347,7 +352,7 @@ namespace Skybrud.Umbraco.Redirects.Models {
         /// </summary>
         /// <param name="mediaId">The numeric ID of the media item.</param>
         /// <returns>An array of <see cref="RedirectItem"/>.</returns>
-        public RedirectItem[] GetRedirectsByMediaId(int mediaId) {
+        public virtual RedirectItem[] GetRedirectsByMediaId(int mediaId) {
 
             // Just return an empty array if the table doesn't exist (since there aren't any redirects anyway)
             if (!SchemaHelper.TableExist(RedirectItemRow.TableName)) return new RedirectItem[0];
@@ -372,7 +377,7 @@ namespace Skybrud.Umbraco.Redirects.Models {
         ///     redirects. Default is <code>null</code>.</param>
         /// <param name="rootNodeId"></param>
         /// <returns>An instance of <see cref="RedirectsSearchResult"/>.</returns>
-        public RedirectsSearchResult GetRedirects(int page = 1, int limit = 20, string type = null, string text = null, int? rootNodeId = null) {
+        public virtual RedirectsSearchResult GetRedirects(int page = 1, int limit = 20, string type = null, string text = null, int? rootNodeId = null) {
 
             // Just return an empty array if the table doesn't exist (since there aren't any redirects anyway)
             if (!SchemaHelper.TableExist(RedirectItemRow.TableName)) return new RedirectsSearchResult(0, limit, 0, 0, 0, new RedirectItem[0]);
@@ -422,7 +427,7 @@ namespace Skybrud.Umbraco.Redirects.Models {
             // Return the items (on the requested page)
             return new RedirectsSearchResult(all.Length, limit, offset, page, pages, items);
 
-        }
+        }      
 
         //public object GetRedirectsForContent(int contentId) {
 

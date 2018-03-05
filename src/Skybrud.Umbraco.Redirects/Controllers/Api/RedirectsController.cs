@@ -1,15 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Threading.Tasks;
+using System.Web;
 using System.Web.Http;
 using Skybrud.Umbraco.Redirects.Exceptions;
+using Skybrud.Umbraco.Redirects.Import.Csv;
 using Skybrud.Umbraco.Redirects.Models;
 using Skybrud.WebApi.Json;
 using Skybrud.WebApi.Json.Meta;
 using Umbraco.Core;
+using Umbraco.Core.IO;
 using Umbraco.Core.Models;
+using Umbraco.Web.PublishedCache;
 using Umbraco.Web.WebApi;
 
 namespace Skybrud.Umbraco.Redirects.Controllers.Api {
@@ -263,6 +271,66 @@ namespace Skybrud.Umbraco.Redirects.Controllers.Api {
             
             }
 
+        }
+
+        private const string FileUploadPath = "~/App_Data/TEMP/FileUploads/";
+        private const string FileName = "redirects{0}.csv";
+
+        [HttpPost]
+        public async Task<HttpResponseMessage> Import()
+        {
+            if (!Request.Content.IsMimeMultipartContent())
+            {
+                throw new HttpResponseException(new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.UnsupportedMediaType,
+                    Content = new StringContent("File must be a valid CSV file")
+                });
+            }
+
+            var uploadFolder = HttpContext.Current.Server.MapPath(FileUploadPath);
+            Directory.CreateDirectory(uploadFolder);
+            var provider = new CustomMultipartFormDataStreamProvider(uploadFolder);
+            var result = await Request.Content.ReadAsMultipartAsync(provider);
+            var file = result.FileData[0];
+            var path = file.LocalFileName;
+            var ext = path.Substring(path.LastIndexOf('.')).ToLower();
+
+            if (ext != ".csv")
+            {
+                throw new HttpResponseException(new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.UnsupportedMediaType,
+                    Content = new StringContent("File must be a valid CSV file")
+                });
+            }
+
+            var fileNameAndPath = HttpContext.Current.Server.MapPath(FileUploadPath + string.Format(FileName, DateTime.Now.Ticks));
+
+            System.IO.File.Copy(file.LocalFileName, fileNameAndPath, true);
+
+            try
+            {
+                var importer = new RedirectsImporter(UmbracoContext);
+
+                importer.Import(fileNameAndPath, CsvSeparator.Comma);
+
+                return Request.CreateResponse(HttpStatusCode.OK);
+            }
+            catch (Exception ex)
+            {
+                return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex.Message, ex);
+            }
+        }
+
+        public class CustomMultipartFormDataStreamProvider : MultipartFormDataStreamProvider
+        {
+            public CustomMultipartFormDataStreamProvider(string path) : base(path) { }
+
+            public override string GetLocalFileName(HttpContentHeaders headers)
+            {
+                return headers.ContentDisposition.FileName.Replace("\"", string.Empty);
+            }
         }
 
         #endregion
