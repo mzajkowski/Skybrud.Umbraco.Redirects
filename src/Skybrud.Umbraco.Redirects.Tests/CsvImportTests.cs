@@ -1,110 +1,89 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Data.SqlClient;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml.XPath;
-using GDev.Umbraco.Test;
+﻿using System.IO;
 using Moq;
 using Skybrud.Umbraco.Redirects.Import.Csv;
 using Skybrud.Umbraco.Redirects.Models;
+using Skybrud.Umbraco.Redirects.Models.Import;
 using Umbraco.Core.Models;
-using Umbraco.Core.Models.PublishedContent;
-using Umbraco.Core.PropertyEditors;
-using Umbraco.Core.Xml;
 using Umbraco.Web.PublishedCache;
 using Xunit;
-using File = System.IO.File;
-using UmbracoCmsWeb = Umbraco.Web;
 
 namespace Skybrud.Umbraco.Redirects.Tests
 {
     public class CsvImportTests
     {
-        public interface Importer
-        {
-            
-        }
-
         [Fact]
         public void Import_ValidRedirects_ShouldSucceed()
         {
-            var umbracoContext = new ContextMocker().UmbracoContextMock;
+            var publishedContentMock = new Mock<IPublishedContent>();
 
-            var repositoryMock = new Mock<RedirectsRepository>();
+            publishedContentMock.Setup(mock => mock.Url).Returns("/source1");
 
-            repositoryMock.Setup(m => m.GetRedirectByUrl(-1, "http://skybrudtest.dev.local/source1"));
+            var contentFinderMock = new Mock<IRedirectPublishedContentFinder>();
 
-            var existingItem = new RedirectItem
-            {
-                Url = "http://skybrudtest.dev.local/source1",
-                Link = new RedirectLinkItem(3, "destination1", "http://skybrudtest.dev.local/destination1,url", RedirectLinkMode.Url)
-            };
+            contentFinderMock.Setup(mock => mock.Find("/source1")).Returns(publishedContentMock.Object);
 
-            repositoryMock.Setup(m => m.SaveRedirect(existingItem));
+            var importer = new RedirectsImporter(contentFinderMock.Object);
 
-            var repository = repositoryMock.Object;
-
-            var publishedCacheMock = new Mock<IPublishedContentCache>();
-
-            publishedCacheMock.Setup(m => m.GetByRoute(umbracoContext, false, "/source1", false));
-
-            var importer = new RedirectsImporter(umbracoContext);
-
-            importer.Import(string.Concat(Directory.GetCurrentDirectory(), "\\Files\\Csv\\redirects.csv"), CsvSeparator.Comma);
+            var response = importer.Import(string.Concat(Directory.GetCurrentDirectory(), "\\Files\\Csv\\redirects.csv"), CsvSeparator.Comma);    
+            
+            Assert.NotEmpty(response.ImportedItems);
         }
 
         [Fact]
-        public void Import_BlankLines_ShouldReturnValidationError()
+        public void Import_BlankLines_ShouldSucceed()
         {
-            var umbracoContext = new ContextMocker().UmbracoContextMock;
+            var publishedContentMock = new Mock<IPublishedContent>();
+
+            publishedContentMock.Setup(mock => mock.Url).Returns("/source1");
+
+            var contentFinderMock = new Mock<IRedirectPublishedContentFinder>();
+
+            contentFinderMock.Setup(mock => mock.Find("/source1")).Returns(publishedContentMock.Object);
+
+            var importer = new RedirectsImporter(contentFinderMock.Object);
+
+            var response = importer.Import(string.Concat(Directory.GetCurrentDirectory(), "\\Files\\Csv\\redirects-blanklines.csv"), CsvSeparator.Comma);
+
+            Assert.Equal("Error", response.File.Rows[4].Cells[3].Value);
+            Assert.Equal("No destination URL was provided or is in the wrong format", response.File.Rows[4].Cells[4].Value);
+        }
+
+        [Fact]
+        public void Import_RedirectChain_ShouldSucceed()
+        {
+            var publishedContentMock = new Mock<IPublishedContent>();
+
+            publishedContentMock.Setup(mock => mock.Url).Returns("/source1");
+
+            var contentFinderMock = new Mock<IRedirectPublishedContentFinder>();
+
+            contentFinderMock.Setup(mock => mock.Find("/source1")).Returns(publishedContentMock.Object);
+
+            var importer = new RedirectsImporter(contentFinderMock.Object);
+
+            var response = importer.Import(string.Concat(Directory.GetCurrentDirectory(), "\\Files\\Csv\\redirects-redirectchain.csv"), CsvSeparator.Comma);
             
-            var repositoryMock = new Mock<RedirectsRepository>();
+            Assert.Equal("Warning", response.File.Rows[0].Cells[3].Value);
+            Assert.Equal("This redirect links to the URL (/destination1) in the file. This will result in a redirect chain", response.File.Rows[0].Cells[4].Value);
+        }
 
-            repositoryMock.Setup(m => m.GetRedirectByUrl(-1, "http://skybrudtest.dev.local/source1"));
+        [Fact]
+        public void Import_RedirectLoop_ShouldSucceed()
+        {
+            var publishedContentMock = new Mock<IPublishedContent>();
 
-            var existingItem = new RedirectItem
-            {
-                Url = "http://skybrudtest.dev.local/source1",
-                Link = new RedirectLinkItem(3, "destination1", "http://skybrudtest.dev.local/destination1,url", RedirectLinkMode.Url)
-            };
+            publishedContentMock.Setup(mock => mock.Url).Returns("/source1");
 
-            repositoryMock.Setup(m => m.SaveRedirect(existingItem));
+            var contentFinderMock = new Mock<IRedirectPublishedContentFinder>();
 
-            var repository = repositoryMock.Object;
+            contentFinderMock.Setup(mock => mock.Find("/source1")).Returns(publishedContentMock.Object);
 
-            var publishedCacheMock = new Mock<IPublishedContentCache>();
+            var importer = new RedirectsImporter(contentFinderMock.Object);
 
-            publishedCacheMock.Setup(m => m.GetByRoute(umbracoContext, false, "/source1", false));
+            var response = importer.Import(string.Concat(Directory.GetCurrentDirectory(), "\\Files\\Csv\\redirects-redirectloop.csv"), CsvSeparator.Comma);
 
-            var importer = new RedirectsImporter(umbracoContext);
-
-            var response = importer.Import(string.Concat(Directory.GetCurrentDirectory(), "\\Files\\Csv\\redirects.csv"), CsvSeparator.Comma);
-
-            Assert.NotEmpty(response.ImportedItems);
-
-            FileInfo outputFile = new FileInfo(string.Concat(Directory.GetCurrentDirectory(), "\\Files\\Csv\\redirects.xlsx"));
-
-            //NTH
-            //using (FastExcel.FastExcel fastExcel = new FastExcel.FastExcel(outputFile))
-            //{
-            //    var objectList = new List<RedirectItem>();
-
-            //    foreach (var VARIABLE in response.ImportedItems)
-            //    {
-                    
-            //    }
-
-            //    RedirectItem genericObject = new RedirectItem();
-            //    genericObject
-
-            //    objectList.Add(genericObject);
-
-            //    fastExcel.Write(objectList, "sheet3", true);
-            //}
+            Assert.Equal("Error", response.File.Rows[0].Cells[3].Value);
+            Assert.Equal("This redirect would create a redirect loop as another redirect exists with the URL (/destination1) in the file. It has not been imported.", response.File.Rows[0].Cells[4].Value);
         }
     }
 }

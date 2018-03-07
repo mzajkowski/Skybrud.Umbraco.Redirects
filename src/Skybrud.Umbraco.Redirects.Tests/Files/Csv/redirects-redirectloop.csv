@@ -1,0 +1,3 @@
+﻿Source,Destination,Type
+http://skybrudtest.dev.local/source1,http://skybrudtest.dev.local/destination1,url
+http://skybrudtest.dev.local/destination1,http://skybrudtest.dev.local/source1,url

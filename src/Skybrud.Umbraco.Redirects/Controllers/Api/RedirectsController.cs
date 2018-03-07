@@ -12,6 +12,7 @@ using System.Web.Http;
 using Skybrud.Umbraco.Redirects.Exceptions;
 using Skybrud.Umbraco.Redirects.Import.Csv;
 using Skybrud.Umbraco.Redirects.Models;
+using Skybrud.Umbraco.Redirects.Models.Import;
 using Skybrud.WebApi.Json;
 using Skybrud.WebApi.Json.Meta;
 using Umbraco.Core;
@@ -311,11 +312,11 @@ namespace Skybrud.Umbraco.Redirects.Controllers.Api {
 
             try
             {
-                var importer = new RedirectsImporter(UmbracoContext);
+                var importer = new RedirectsImporter(new RedirectPublishedContentFinder(UmbracoContext.ContentCache));
 
-                importer.Import(fileNameAndPath, CsvSeparator.Comma);
+                var response = importer.Import(fileNameAndPath, CsvSeparator.Comma);
 
-                return Request.CreateResponse(HttpStatusCode.OK);
+                return Request.CreateResponse(HttpStatusCode.OK, response);
             }
             catch (Exception ex)
             {
