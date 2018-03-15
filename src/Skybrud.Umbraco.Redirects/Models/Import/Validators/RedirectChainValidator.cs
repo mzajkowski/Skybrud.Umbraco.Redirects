@@ -3,13 +3,25 @@ using System.Linq;
 
 namespace Skybrud.Umbraco.Redirects.Models.Import.Validators
 {
+    /// <summary>
+    /// Detects redirect chains and loops in the file. Chains are treated as warnings.
+    /// They get imported but return with warnings on RedirectItemValidationResult. Loops are 
+    /// not imported as they cause bugs and are treated as errors
+    /// </summary>
     public class RedirectChainValidator : ValidatorBase
     {
         public override List<RedirectItemValidationResult> HandleValidation(RedirectItem redirectItem, IEnumerable<RedirectItem> otherRedirectItems)
         {
             var response = new RedirectItemValidationResult();
 
-            var destinationRedirect = otherRedirectItems.FirstOrDefault(item => item.Url == redirectItem.LinkUrl);
+            var linkUrl = string.Empty;
+
+            if (!string.IsNullOrEmpty(redirectItem.LinkUrl))
+            {
+                linkUrl = redirectItem.LinkUrl;
+            }
+        
+            var destinationRedirect = otherRedirectItems.FirstOrDefault(item => item.Url == linkUrl && item.QueryString == redirectItem.QueryString && item.UniqueId  != redirectItem.UniqueId);
 
             if (destinationRedirect != null)
             {
@@ -22,16 +34,14 @@ namespace Skybrud.Umbraco.Redirects.Models.Import.Validators
 
                     return ErrorsResult;
                 }
-                else
-                {
-                    response.Status = ImportErrorLevel.Warning;
-                    response.ErrorMessage = string.Format("This redirect links to the URL ({0}) in the file. This will result in a redirect chain", redirectItem.LinkUrl);
 
-                    ErrorsResult.Add(response);
+                response.Status = ImportErrorLevel.Warning;
+                response.ErrorMessage = string.Format("This redirect links to the URL ({0}) in the file. This will result in a redirect chain", redirectItem.LinkUrl);
 
-                    return ErrorsResult;
-                }
-            }
+                ErrorsResult.Add(response);
+
+                return ErrorsResult;
+            }                     
 
             if (Successor != null)
             {

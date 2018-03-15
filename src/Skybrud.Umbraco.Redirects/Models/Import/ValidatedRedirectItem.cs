@@ -3,6 +3,9 @@ using System.Linq;
 
 namespace Skybrud.Umbraco.Redirects.Models.Import
 {
+    /// <summary>
+    /// Represents a validated redirect item. It could be valid or invalid or partially valid (has warnings).
+    /// </summary>
     public class ValidatedRedirectItem
     {
         public RedirectItem Item { get; set; }

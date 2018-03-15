@@ -9,10 +9,12 @@ using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http;
+using System.Web.Mvc;
 using Skybrud.Umbraco.Redirects.Exceptions;
 using Skybrud.Umbraco.Redirects.Import.Csv;
 using Skybrud.Umbraco.Redirects.Models;
 using Skybrud.Umbraco.Redirects.Models.Import;
+using Skybrud.Umbraco.Redirects.Models.Import.File;
 using Skybrud.WebApi.Json;
 using Skybrud.WebApi.Json.Meta;
 using Umbraco.Core;
@@ -44,7 +46,7 @@ namespace Skybrud.Umbraco.Redirects.Controllers.Api {
 
         #region Public API methods
 
-        [HttpGet]
+        [System.Web.Http.HttpGet]
         public object GetDomains() {
             RedirectDomain[] domains = Repository.GetDomains();
             return new {
@@ -57,7 +59,7 @@ namespace Skybrud.Umbraco.Redirects.Controllers.Api {
         /// Gets a list of root nodes based on the domains added to Umbraco. A root node will only be included in the
         /// list once - even if it has been assigned multiple domains.
         /// </summary>
-        [HttpGet]
+        [System.Web.Http.HttpGet]
         public object GetRootNodes() {
             
             RedirectDomain[] domains = Repository.GetDomains();
@@ -87,7 +89,7 @@ namespace Skybrud.Umbraco.Redirects.Controllers.Api {
         
         }
         
-        [HttpGet]
+        [System.Web.Http.HttpGet]
         public object GetRedirects(int page = 1, int limit = 20, string type = null, string text = null, int? rootNodeId = null) {
             try {
                 return Repository.GetRedirects(page, limit, type, text, rootNodeId);
@@ -96,7 +98,7 @@ namespace Skybrud.Umbraco.Redirects.Controllers.Api {
             }
         }
 
-        [HttpGet]
+        [System.Web.Http.HttpGet]
         public object GetRedirectsForContent(int contentId) {
 
             try {
@@ -125,7 +127,7 @@ namespace Skybrud.Umbraco.Redirects.Controllers.Api {
         
         }
 
-        [HttpGet]
+        [System.Web.Http.HttpGet]
         public object GetRedirectsForMedia(int contentId) {
 
             try {
@@ -154,7 +156,7 @@ namespace Skybrud.Umbraco.Redirects.Controllers.Api {
 
         }
 
-        [HttpGet]
+        [System.Web.Http.HttpGet]
         public object AddRedirect(int rootNodeId, string url, string linkMode, int linkId, string linkUrl, string linkName = null, bool permanent = true, bool regex = false, bool forward = false) {
 
             try {
@@ -191,7 +193,7 @@ namespace Skybrud.Umbraco.Redirects.Controllers.Api {
 
         }
 
-        [HttpGet]
+        [System.Web.Http.HttpGet]
         public object EditRedirect(int rootNodeId, string redirectId, string url, string linkMode, int linkId, string linkUrl, string linkName = null, bool permanent = true, bool regex = false, bool forward = false) {
 
             try {
@@ -250,7 +252,7 @@ namespace Skybrud.Umbraco.Redirects.Controllers.Api {
         /// Deletes the redirect with the specified <paramref name="redirectId"/>.
         /// </summary>
         /// <param name="redirectId">The ID of the redirect.</param>
-        [HttpGet]
+        [System.Web.Http.HttpGet]
         public object DeleteRedirect(string redirectId) {
 
             try {
@@ -277,7 +279,7 @@ namespace Skybrud.Umbraco.Redirects.Controllers.Api {
         private const string FileUploadPath = "~/App_Data/TEMP/FileUploads/";
         private const string FileName = "redirects{0}.csv";
 
-        [HttpPost]
+        [System.Web.Http.HttpPost]
         public async Task<HttpResponseMessage> Import()
         {
             if (!Request.Content.IsMimeMultipartContent())
@@ -285,42 +287,71 @@ namespace Skybrud.Umbraco.Redirects.Controllers.Api {
                 throw new HttpResponseException(new HttpResponseMessage
                 {
                     StatusCode = HttpStatusCode.UnsupportedMediaType,
-                    Content = new StringContent("File must be a valid CSV file")
+                    Content = new StringContent("File must be a valid CSV or Excel file")
                 });
             }
 
             var uploadFolder = HttpContext.Current.Server.MapPath(FileUploadPath);
             Directory.CreateDirectory(uploadFolder);
             var provider = new CustomMultipartFormDataStreamProvider(uploadFolder);
+
             var result = await Request.Content.ReadAsMultipartAsync(provider);
+
             var file = result.FileData[0];
             var path = file.LocalFileName;
             var ext = path.Substring(path.LastIndexOf('.')).ToLower();
 
-            if (ext != ".csv")
+            if (ext != ".csv" && ext != ".xlst")
             {
                 throw new HttpResponseException(new HttpResponseMessage
                 {
                     StatusCode = HttpStatusCode.UnsupportedMediaType,
-                    Content = new StringContent("File must be a valid CSV file")
+                    Content = new StringContent("File must be a valid CSV or Excel file")
                 });
             }
 
             var fileNameAndPath = HttpContext.Current.Server.MapPath(FileUploadPath + string.Format(FileName, DateTime.Now.Ticks));
 
             System.IO.File.Copy(file.LocalFileName, fileNameAndPath, true);
+            
+            var importer = new RedirectsImporterService();
+            
+            IRedirectsFile redirectsFile;
 
-            try
-            {
-                var importer = new RedirectsImporter(new RedirectPublishedContentFinder(UmbracoContext.ContentCache));
+            switch (ext)
+            {   
+                default:
+                    var csvFile = new CsvRedirectsFile(new RedirectPublishedContentFinder(UmbracoContext.ContentCache))
+                        {
+                            FileName = fileNameAndPath,
+                            Seperator = CsvSeparator.Comma
+                        };
 
-                var response = importer.Import(fileNameAndPath, CsvSeparator.Comma);
+                    redirectsFile = csvFile;
 
-                return Request.CreateResponse(HttpStatusCode.OK, response);
+                    break;
             }
-            catch (Exception ex)
+                
+            var response = importer.Import(redirectsFile);
+
+            using (var ms = new MemoryStream())
             {
-                return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex.Message, ex);
+                using (var outputFile = new FileStream(response.File.FileName, FileMode.Open, FileAccess.Read))
+                {
+                    byte[] bytes = new byte[outputFile.Length];
+                    outputFile.Read(bytes, 0, (int)outputFile.Length);
+                    ms.Write(bytes, 0, (int)outputFile.Length);
+
+                    HttpResponseMessage httpResponseMessage = new HttpResponseMessage();
+                    httpResponseMessage.Content = new ByteArrayContent(bytes.ToArray());
+                    httpResponseMessage.Content.Headers.Add("x-filename", "redirects.csv");
+                    httpResponseMessage.Content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+                    httpResponseMessage.Content.Headers.ContentDisposition = new ContentDispositionHeaderValue("attachment");
+                    httpResponseMessage.Content.Headers.ContentDisposition.FileName = "redirects.csv";
+                    httpResponseMessage.StatusCode = HttpStatusCode.OK;
+
+                    return httpResponseMessage;
+                }
             }
         }
 

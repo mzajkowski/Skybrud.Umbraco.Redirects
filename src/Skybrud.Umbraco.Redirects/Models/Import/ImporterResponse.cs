@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
-using Skybrud.Umbraco.Redirects.Import.Csv;
+using Skybrud.Umbraco.Redirects.Models.Import.File;
 
 namespace Skybrud.Umbraco.Redirects.Models.Import
 {
@@ -11,7 +11,7 @@ namespace Skybrud.Umbraco.Redirects.Models.Import
             ImportedItems = Enumerable.Empty<ValidatedRedirectItem>();
         }
 
-        public CsvFile File { get; set; }
+        public IRedirectsFile File { get; set; }
 
         public IEnumerable<ValidatedRedirectItem> ImportedItems { get; set;  }
     }
