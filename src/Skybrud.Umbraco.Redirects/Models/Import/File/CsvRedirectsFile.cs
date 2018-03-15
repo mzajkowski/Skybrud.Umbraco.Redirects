@@ -121,8 +121,7 @@ namespace Skybrud.Umbraco.Redirects.Models.Import.File
                 var lastSlash = destinationUrl.AbsolutePath.LastIndexOf('/');
                 var destUrlNoTrailingSlash = (lastSlash > 0) ? destinationUrl.AbsolutePath.Substring(0, lastSlash) : destinationUrl.AbsolutePath;
 
-                //Replace with published content finder
-                var urlContent = UmbracoContext.Current.ContentCache.GetByRoute(destUrlNoTrailingSlash, false);
+                var urlContent = contentFinder.Find(destUrlNoTrailingSlash);
 
                 if (urlContent != null)
                 {
