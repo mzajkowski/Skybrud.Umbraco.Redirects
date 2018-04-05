@@ -44,6 +44,16 @@
         });
     };
 
+    $scope.import = function () {
+        skybrudRedirectsService.import({
+            callback: function () {
+
+                $scope.updateList(1);           
+            }
+        });
+    };
+    $
+
     // Opens a dialog for adding a new redirect. When a callback received, the list is updated.
     $scope.editRedirect = function (redirect) {
         skybrudRedirectsService.editRedirect(redirect, function () {
