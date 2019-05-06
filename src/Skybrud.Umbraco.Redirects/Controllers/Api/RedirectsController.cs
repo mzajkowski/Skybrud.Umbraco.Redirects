@@ -22,6 +22,7 @@ using Umbraco.Core.IO;
 using Umbraco.Core.Models;
 using Umbraco.Web.PublishedCache;
 using Umbraco.Web.WebApi;
+using HttpGetAttribute = System.Web.Http.HttpGetAttribute;
 
 namespace Skybrud.Umbraco.Redirects.Controllers.Api {
     
